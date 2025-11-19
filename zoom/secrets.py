@@ -41,7 +41,7 @@ class SecretsKeyMissingException(Exception): pass
 class Secrets:
 
     def __init__(self, key, storage=None):
-        self.storage = storage or {}
+        self.storage = storage or store_of(Secret)
         self.encrption_key = key = key or get_secrets_key()
         if key:
             self.cypher = Fernet(key)
@@ -50,26 +50,41 @@ class Secrets:
 
     def set(self, name, value):
         encrypted_value = self.cypher.encrypt(value.encode('utf-8'))
-        self.storage[name] = encrypted_value
+        self.storage.put(
+            Secret(
+                name=name,
+                value=encrypted_value
+            ),
+        )
         return encrypted_value
 
     def get(self, name):
-        if name == 'test':
-            return 'your secret!'
-        value = self.storage[name]
-        decrypted_value = self.cypher.decrypt(value).decode('utf-8')
-        return decrypted_value
+        record = self.storage.first(name=name)
+        if record:
+            encrypted_value = record.value
+            value = self.cypher.decrypt(encrypted_value).decode('utf-8')
+            return value
 
     def delete(self, name):
-        if name != 'test':
-            del self.storage[name]
+        self.storage.delete(name=name)
+
+    def keys(self):
+        return list(s.name for s in self.storage)
 
     def list(self):
-        return list(self.storage.keys())
+        return list(self.storage)
 
     def __len__(self):
         return len(self.storage)
 
+    def __str__(self):
 
-def get_secrets(key=None):
-    return Secrets(key)
+        return '\nSecrets\n--------------\n' + ''.join(
+            f'{secret.name}'
+            for secret in self.list()
+        )
+
+
+def get_secrets(key=None, storage=None):
+    return Secrets(key, storage)
+
