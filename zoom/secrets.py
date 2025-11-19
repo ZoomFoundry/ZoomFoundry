@@ -18,14 +18,15 @@ def generate_key():
 def get_secrets_key():
     """Get existing site secrets key"""
 
-    def get_key_from_container(name):
+    def get_key_from_file(name):
         if name.isalpha:
-            pathname = '/var/secrets/' + name
+            path = os.environ.get('ZOOM_SECRETS_PATH', '/var/secrets')
+            pathname = os.path.join(path, name)
             if os.path.isfile(pathname):
                 with open(pathname, 'rb') as f:
                     return f.read()
 
-    str_key = get_key_from_container(key_name) or os.environ.get(key_name.upper(), None)
+    str_key = get_key_from_file(key_name) or os.environ.get(key_name.upper(), None)
 
     return str_key.encode() if str_key is not None else None
 
