@@ -20,7 +20,6 @@ class Secret(zoom.store.Entity):
 
     @property
     def link(self):
-        # return self.name
         return zoom.link_to(self.name, self.url)
 
 
@@ -31,7 +30,7 @@ class Secrets:
 
     def __init__(self, key, storage=None):
         self.storage = storage or store_of(Secret)
-        self.encrption_key = key = key or get_encryption_key()
+        key = key or get_encryption_key()
         if key:
             self.encrypter = get_encrypter(key)
         else:
