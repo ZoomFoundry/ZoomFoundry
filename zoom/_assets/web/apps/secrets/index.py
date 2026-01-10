@@ -24,7 +24,7 @@ def secret_fields():
     result = f.Fields(
         f.TextField('Name', v.required),
         f.MemoField('Description', v.required),
-        SecretField('Value', v.required, browse=True, editable=False),
+        SecretField('Value', v.required, browse=False, editable=False),
         f.DateField('Expiry', hint='optional'),
     )
     if zoom.system.request.route[-1] == 'edit':
