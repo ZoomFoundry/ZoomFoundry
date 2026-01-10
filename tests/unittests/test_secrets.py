@@ -25,6 +25,9 @@ class TestSecrets(unittest.TestCase):
         self.store.zap()
         self.key_name = zoom.encryption.key_name + '_test'
 
+    def tearDown(self):
+        self.store.delete(name='my-secret')
+
     def test_get_encryption_key(self):
         key = zoom.encryption.get_encryption_key(self.key_name)
         self.assertIsNone(key)
