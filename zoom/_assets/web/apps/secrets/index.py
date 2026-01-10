@@ -39,7 +39,7 @@ class SecretsView(zoom.collect.CollectionView):
 
     def new_key(self, *a, **k):
 
-        key_exists = get_secrets_key()
+        key_exists = get_encryption_key()
         if key_exists:
             message = """
             <h3>Configuration Complete</h3>
