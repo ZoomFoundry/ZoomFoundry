@@ -83,5 +83,9 @@ def get_secrets(key=None, storage=None):
     return Secrets(key, storage)
 
 
+def get_secret(name, key=None, storage=None):
+    return get_secrets(key, storage).get(name)
+
+
 def get_secrets_store():
     return store_of(Secret)

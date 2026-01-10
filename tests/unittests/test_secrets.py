@@ -56,6 +56,15 @@ class TestSecrets(unittest.TestCase):
         returned_value = secrets.get('my-secret')
         self.assertEqual(my_secret, returned_value)
 
+    def test_get_secret(self):
+        key = generate_key()
+        secrets = zoom.secrets.get_secrets(key, self.store)
+        my_secret = 'my secret'
+        my_encrypted_secret = secrets.set('my-secret', my_secret)
+        self.assertNotEqual(my_secret, my_encrypted_secret)
+
+        returned_value = zoom.secrets.get_secret('my-secret', key, self.store)
+        self.assertEqual(my_secret, returned_value)
 
     def test_keys(self):
         key = generate_key()
