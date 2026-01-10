@@ -7,8 +7,8 @@ import zoom.fields as f
 import zoom.request
 import zoom.validators as v
 
-from zoom.encryption import generate_key
-from zoom.secrets import get_secrets_key, Secret, get_secrets_store
+from zoom.encryption import generate_key, get_encryption_key
+from zoom.secrets import Secret, get_secrets_store
 
 class SecretField(f.MemoField):
     """Secret Field"""

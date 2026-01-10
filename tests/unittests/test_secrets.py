@@ -9,6 +9,7 @@
 import os
 import unittest
 
+import zoom.encryption
 import zoom.secrets
 import zoom.database
 from zoom.encryption import generate_key
@@ -22,21 +23,21 @@ class TestSecrets(unittest.TestCase):
         zoom.system.site = self.site = site = zoom.sites.Site()
         self.store = zoom.store_of(zoom.secrets.Secret)
         self.store.zap()
-        self.key_name = zoom.secrets.key_name + '_test'
+        self.key_name = zoom.encryption.key_name + '_test'
 
-    def test_get_secrets_key(self):
-        key = zoom.secrets.get_secrets_key(self.key_name)
+    def test_get_encryption_key(self):
+        key = zoom.encryption.get_encryption_key(self.key_name)
         self.assertIsNone(key)
 
         key_name = self.key_name.upper()
         new_key = generate_key()
         os.environ.setdefault(key_name, new_key.decode())
-        key = zoom.secrets.get_secrets_key()
+        key = zoom.encryption.get_encryption_key()
         self.assertIsNotNone(key)
 
     def test_secrets_key_missing(self):
         del os.environ[self.key_name.upper()]
-        key = zoom.secrets.get_secrets_key(self.key_name)
+        key = zoom.encryption.get_encryption_key(self.key_name)
         self.assertIsNone(key)
 
     def test_connection(self):
