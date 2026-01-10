@@ -19,6 +19,9 @@ class SecretField(f.MemoField):
     def display_value(self):
         return '*' * len(self.value)
 
+    def as_searchable(self):
+        return set()
+
 
 def secret_fields():
     result = f.Fields(
