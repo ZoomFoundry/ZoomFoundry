@@ -32,7 +32,7 @@ class TestSecrets(unittest.TestCase):
         key_name = self.key_name.upper()
         new_key = generate_key()
         os.environ.setdefault(key_name, new_key.decode())
-        key = zoom.encryption.get_encryption_key()
+        key = zoom.encryption.get_encryption_key(self.key_name)
         self.assertIsNotNone(key)
 
     def test_secrets_key_missing(self):
