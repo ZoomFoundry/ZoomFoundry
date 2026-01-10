@@ -10,45 +10,40 @@ import os
 import unittest
 
 import zoom.secrets
-from zoom.database import setup_test
-
+import zoom.database
+from zoom.encryption import generate_key
 
 class TestSecrets(unittest.TestCase):
     """test the Storage class"""
 
     def setUp(self):
-        db = setup_test()
+        db = zoom.database.setup_test()
         db.autocommit(1)
         zoom.system.site = self.site = site = zoom.sites.Site()
         self.store = zoom.store_of(zoom.secrets.Secret)
         self.store.zap()
-
-    def test_generate_key(self):
-        key = zoom.secrets.generate_key()
-        key_name = zoom.secrets.key_name.upper()
-        self.assertEqual(type(key), type(b''))
-        self.assertEqual(len(key), 44)
+        self.key_name = zoom.secrets.key_name + '_test'
 
     def test_get_secrets_key(self):
-        key = zoom.secrets.get_secrets_key()
+        key = zoom.secrets.get_secrets_key(self.key_name)
         self.assertIsNone(key)
 
-        key_name = zoom.secrets.key_name.upper()
-        new_key = zoom.secrets.generate_key()
+        key_name = self.key_name.upper()
+        new_key = generate_key()
         os.environ.setdefault(key_name, new_key.decode())
         key = zoom.secrets.get_secrets_key()
         self.assertIsNotNone(key)
 
     def test_secrets_key_missing(self):
-        del os.environ[zoom.secrets.key_name.upper()]
-        key = zoom.secrets.get_secrets_key()
+        del os.environ[self.key_name.upper()]
+        key = zoom.secrets.get_secrets_key(self.key_name)
         self.assertIsNone(key)
 
     def test_connection(self):
         self.assertEqual(len(zoom.db('show tables')), 9)
 
     def test_set_get_secret(self):
-        key = zoom.secrets.generate_key()
+        key = generate_key()
         secrets = zoom.secrets.get_secrets(key, self.store)
         my_secret = 'my secret'
         my_encrypted_secret = secrets.set('my-secret', my_secret)
@@ -62,7 +57,7 @@ class TestSecrets(unittest.TestCase):
 
 
     def test_keys(self):
-        key = zoom.secrets.generate_key()
+        key = generate_key()
         secrets = zoom.secrets.get_secrets(key, self.store)
         my_secret = 'my secret'
 
@@ -77,7 +72,7 @@ class TestSecrets(unittest.TestCase):
         ])
 
     def test_len_secrets(self):
-        key = zoom.secrets.generate_key()
+        key = generate_key()
         secrets = zoom.secrets.get_secrets(key)
         my_secret = 'my secret'
 
@@ -87,7 +82,7 @@ class TestSecrets(unittest.TestCase):
         self.assertEqual(len(secrets), 2)
 
     def test_delete_secret(self):
-        key = zoom.secrets.generate_key()
+        key = generate_key()
         secrets = zoom.secrets.get_secrets(key)
         my_secret = 'my secret'
 

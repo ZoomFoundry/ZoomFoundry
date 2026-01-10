@@ -3,27 +3,20 @@
 """
 
 import os
-from cryptography.fernet import Fernet
 import zoom.tools
+from zoom.encryption import get_encrypter, key_name
 from zoom import store_of
 
-key_name = 'zoom_secret_key'
 
-
-def generate_key():
-    """Generate a new key"""
-    return Fernet.generate_key()
-
-
-def get_secrets_key():
+def get_secrets_key(key_name=key_name):
     """Get existing site secrets key"""
 
     def get_key_from_file(name):
         if name.isalpha:
-            path = os.environ.get('ZOOM_SECRETS_PATH', '/var/secrets')
+            path = os.environ.get('ZOOM_SECRETS_PATH', '/run/secrets')
             pathname = os.path.join(path, name)
             if os.path.isfile(pathname):
-                with open(pathname, 'rb') as f:
+                with open(pathname, 'r') as f:
                     return f.read()
 
     str_key = get_key_from_file(key_name) or os.environ.get(key_name.upper(), None)
@@ -31,8 +24,21 @@ def get_secrets_key():
     return str_key.encode() if str_key is not None else None
 
 
+# class Secret(zoom.collect.Model):
 class Secret(zoom.store.Entity):
-    pass
+
+    @property
+    def key(self):
+        return self.name
+
+    @property
+    def url(self):
+        return f'/secrets/{self.key}'
+
+    @property
+    def link(self):
+        # return self.name
+        return zoom.link_to(self.name, self.url)
 
 
 class SecretsKeyMissingException(Exception): pass
@@ -44,12 +50,12 @@ class Secrets:
         self.storage = storage or store_of(Secret)
         self.encrption_key = key = key or get_secrets_key()
         if key:
-            self.cypher = Fernet(key)
+            self.encrypter = get_encrypter(key)
         else:
             raise SecretsKeyMissingException('Secrets encryption key missing')
 
     def set(self, name, value):
-        encrypted_value = self.cypher.encrypt(value.encode('utf-8'))
+        encrypted_value = self.encrypter.encrypt(value)
         self.storage.put(
             Secret(
                 name=name,
@@ -62,7 +68,7 @@ class Secrets:
         record = self.storage.first(name=name)
         if record:
             encrypted_value = record.value
-            value = self.cypher.decrypt(encrypted_value).decode('utf-8')
+            value = self.encrypter.decrypt(encrypted_value)
             return value
 
     def delete(self, name):
@@ -73,6 +79,12 @@ class Secrets:
 
     def list(self):
         return list(self.storage)
+
+    def first(self, name):
+        return self.storage.first(name=name)
+
+    def __iter__(self):
+        return self.storage.__iter__()
 
     def __len__(self):
         return len(self.storage)
@@ -88,3 +100,6 @@ class Secrets:
 def get_secrets(key=None, storage=None):
     return Secrets(key, storage)
 
+
+def get_secrets_store():
+    return store_of(Secret)

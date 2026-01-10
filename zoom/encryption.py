@@ -5,6 +5,9 @@
 from cryptography.fernet import Fernet
 
 
+key_name = 'zoom_encryption_key'
+
+
 def generate_key():
     """Generate a new key"""
     return Fernet.generate_key()
