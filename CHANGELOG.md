@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 - respect collection access policy when rendering collection actions
-- add `zoom secrets` CLI with key management commands (list/get/set/delete/rename/exists/clear/new-key/rotate)
+- add `zoom secrets` CLI with key management commands
 - add unit tests for `zoom secrets new-key` CLI
 
 ## [6.27.0] - 2025-11-10
