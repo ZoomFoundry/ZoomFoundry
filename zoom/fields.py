@@ -1516,8 +1516,13 @@ class MoneyField(DecimalField):
     >>> f.display_value()
     '$1,000.00'
 
-    >>> from platform import system
-    >>> l = system()=='Windows' and 'eng' or 'en_GB.UTF-8'
+    >>> real_setlocale = locale.setlocale
+    >>> real_localeconv = locale.localeconv
+    >>> real_currency = locale.currency
+    >>> locale.setlocale = lambda *args: 'en_GB.UTF-8'
+    >>> locale.localeconv = lambda: {'currency_symbol': '\xa3'}
+    >>> locale.currency = lambda value, grouping=True: '\xa3{:,.2f}'.format(value)
+    >>> l = 'en_GB.UTF-8'
     >>> f = MoneyField("Amount", locale=l)
     >>> f.display_value()
     '\\xa30.00'
@@ -1557,6 +1562,9 @@ class MoneyField(DecimalField):
     >>> f = MoneyField("Amount", symbol='£', value=1)
     >>> f.widget()
     '<div class="input-group"><span class="input-group-addon">£</span><input class="decimal_field" type="text" id="amount" maxlength="10" name="amount" size="10" value="1" /></div>'
+    >>> locale.setlocale = real_setlocale
+    >>> locale.localeconv = real_localeconv
+    >>> locale.currency = real_currency
 
     """
 

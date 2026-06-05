@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- make MoneyField doctest locale independent
 
 ## [6.28.0] - 2026-02-09
 - respect collection access policy when rendering collection actions
@@ -288,4 +289,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Linux / Mac / Windows
 ### Changed
 - some modules ported from DataZoomer (https://github.com/dsilabs/datazoomer) which is considered the predecessor to Zoom.
-
