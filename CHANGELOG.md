@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 - make MoneyField doctest locale independent
+- preserve selected request headers in dev reloader
+- preserve requests and urllib3 modules during reload
 
 ## [6.28.0] - 2026-02-09
 - respect collection access policy when rendering collection actions
