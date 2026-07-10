@@ -2,13 +2,27 @@
     secrets index
 """
 
+import html
+
 import zoom
 import zoom.fields as f
-import zoom.request
 import zoom.validators as v
+from zoom.alerts import error
+from zoom.tools import redirect_to
 
-from zoom.encryption import generate_key, get_encryption_key
-from zoom.secrets import Secret, get_secrets_store
+from zoom.encryption import (
+    generate_key,
+    get_encryption_key,
+    get_key_pathname,
+    get_secrets_path,
+    key_name,
+)
+from zoom.secrets import (
+    Secret,
+    SecretsKeyMissingException,
+    get_secrets_store,
+)
+
 
 class SecretField(f.MemoField):
     """Secret Field"""
@@ -35,37 +49,147 @@ def secret_fields():
     return result
 
 
+def key_is_configured():
+    return bool(get_encryption_key())
+
+
+def setup_content():
+    """HTML explaining how to configure the encryption key"""
+    key_file = get_key_pathname()
+    secrets_path = get_secrets_path()
+    env_name = key_name.upper()
+    new_key = generate_key().decode()
+    install_cmd = (
+        "mkdir -p {path} && "
+        "echo '{key}' > {file} && "
+        "chmod 600 {file}"
+    ).format(path=secrets_path, key=new_key, file=key_file)
+
+    if key_is_configured():
+        heading = """
+            <h3>Configuration Complete</h3>
+            This site already has an encryption key available.
+            You can use the Secrets feature, or replace the key
+        """
+    else:
+        heading = """
+            <h3>Configuration Required</h3>
+            This site does not currently have an encryption key available.
+            Secrets cannot be stored until you provide a key
+        """
+
+    return (
+        heading +
+        ' by saving the key in '
+        'the file named <code>{key_file}</code> (recommended) or by '
+        'providing the key in an environment variable named <code>{env_name}</code>.'
+        '<br><br>'
+        'By default Zoom looks in <code>~/.zoom/secrets</code>. '
+        'For production, set <code>ZOOM_SECRETS_PATH=/run/secrets</code> '
+        '(or another service-managed path) and install the key as the service user.'
+        '<br><br>'
+        'Current secrets path: <code>{secrets_path}</code> '
+        '(override with <code>ZOOM_SECRETS_PATH</code>).'
+        '<br><br>'
+        'You can also run <code>zoom secrets new-key</code> to generate and write a key file.'
+        '<br><br>'
+        '<h4>Install with one command</h4>'
+        'Copy and paste this into a terminal (runs as your user; no sudo required):'
+        '<br><br>'
+        '<div style="display:flex;gap:0.5rem;align-items:flex-start;">'
+        '<pre id="zoom-secrets-install-cmd" '
+        'style="flex:1;margin:0;white-space:pre-wrap;word-break:break-all;">{cmd}</pre>'
+        '<button type="button" class="btn btn-secondary btn-sm" '
+        'id="zoom-secrets-copy-btn" onclick="zoomSecretsCopyInstallCmd()">'
+        'Copy</button>'
+        '</div>'
+        '<div id="zoom-secrets-copy-status" style="margin-top:0.5rem;font-size:0.9em;"></div>'
+        '<br>'
+        'Key only (if you prefer to place it yourself): <code>{key}</code>'
+        '<script>'
+        'function zoomSecretsCopyInstallCmd(){{'
+        '  var el = document.getElementById("zoom-secrets-install-cmd");'
+        '  var status = document.getElementById("zoom-secrets-copy-status");'
+        '  var btn = document.getElementById("zoom-secrets-copy-btn");'
+        '  var text = el ? el.textContent : "";'
+        '  function ok(){{'
+        '    if (status) status.textContent = "Copied to clipboard.";'
+        '    if (btn) {{ btn.textContent = "Copied"; setTimeout(function(){{ btn.textContent = "Copy"; }}, 2000); }}'
+        '  }}'
+        '  function fail(){{'
+        '    if (status) status.textContent = "Could not copy automatically. Select the command and copy it manually.";'
+        '  }}'
+        '  if (navigator.clipboard && navigator.clipboard.writeText) {{'
+        '    navigator.clipboard.writeText(text).then(ok).catch(fail);'
+        '  }} else {{'
+        '    try {{'
+        '      var range = document.createRange();'
+        '      range.selectNodeContents(el);'
+        '      var sel = window.getSelection();'
+        '      sel.removeAllRanges();'
+        '      sel.addRange(range);'
+        '      document.execCommand("copy");'
+        '      sel.removeAllRanges();'
+        '      ok();'
+        '    }} catch (e) {{ fail(); }}'
+        '  }}'
+        '}}'
+        '</script>'
+    ).format(
+        key_file=html.escape(key_file),
+        env_name=html.escape(env_name),
+        secrets_path=html.escape(secrets_path),
+        cmd=html.escape(install_cmd),
+        key=html.escape(new_key),
+    )
+
+
+def setup_page(title='Secrets Setup'):
+    return zoom.page(setup_content(), title=title)
+
+
 class SecretsView(zoom.collect.CollectionView):
 
+    def index(self, q='', *args, **kwargs):
+        if not key_is_configured():
+            return setup_page()
+        return super().index(q, *args, **kwargs)
+
+    def new(self, *args, **kwargs):
+        if not key_is_configured():
+            error(
+                'Secrets encryption key is not configured. '
+                'Set up a key before creating secrets.'
+            )
+            return setup_page()
+        return super().new(*args, **kwargs)
+
     def new_key(self, *a, **k):
-
-        key_exists = get_encryption_key()
-        if key_exists:
-            message = """
-            <h3>Configuration Complete</h3>
-            This site already has a site key available for
-            encyrption. You can enable the Secrets feature
-            """
-        else:
-            message = """
-            <h3>Configuration Required</h3>
-            This site does not currently have a site key available for
-            encyrption. You can replace the key
-            """
-
-        return zoom.page(
-            message +
-            ' by saving the key in '
-            'the file named /run/secrets/zoom_secrets_key (recommended) or by '
-            'providing the key in an environment variable named ZOOM_SECRETS_KEY.'
-            '<br><br>'
-            'If your secrets are file based (recommended) but stored elsewhere you can use'
-            ' the evironment variable ZOOM_SECRETS_PATH to tell zoom where to look for the'
-            ' secrets files.'
-            '<br><br>'
-            'Here is a new key if you need one: %s' % generate_key().decode(),
-            title='New Key',
+        title = (
+            'Encryption Key'
+            if key_is_configured()
+            else 'Secrets Setup'
         )
+        return setup_page(title=title)
+
+
+class SecretsController(zoom.collect.CollectionController):
+
+    def create_button(self, *args, **data):
+        if not key_is_configured():
+            error(
+                'Secrets encryption key is not configured. '
+                'Set up a key before creating secrets.'
+            )
+            return redirect_to(self.collection.url)
+        try:
+            return super().create_button(*args, **data)
+        except SecretsKeyMissingException:
+            error(
+                'Secrets encryption key is not configured. '
+                'Set up a key before creating secrets.'
+            )
+            return redirect_to(self.collection.url)
 
 
 main = zoom.collection_of(
@@ -73,5 +197,6 @@ main = zoom.collection_of(
     store=get_secrets_store(),
     model=Secret,
     view=SecretsView,
+    controller=SecretsController,
     url='/secrets'
 )
