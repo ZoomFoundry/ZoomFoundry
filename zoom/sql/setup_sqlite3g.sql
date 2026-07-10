@@ -109,7 +109,8 @@ INSERT INTO `groups` VALUES
     (27,'A','a_forgot','Forgot Password',1),
     (28,'A','a_blog','Blog',1),
     (29,'A','a_flags','Flags',1),
-    (30,'A','a_settings','Settings',1);
+    (30,'A','a_settings','Settings',1),
+    (31,'A','a_secrets','Secrets',1);
 INSERT INTO `subgroups` VALUES
     (2,1),
     (5,1),
@@ -123,6 +124,7 @@ INSERT INTO `subgroups` VALUES
     (22,1),
     (26,1),
     (30,1),
+    (31,1),
     (4,2),
     (10,2),
     (12,2),
