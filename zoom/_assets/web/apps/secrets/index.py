@@ -65,21 +65,12 @@ def setup_content():
         "chmod 600 {file}"
     ).format(path=secrets_path, key=new_key, file=key_file)
 
-    if key_is_configured():
-        heading = """
-            <h3>Configuration Complete</h3>
-            This site already has an encryption key available.
-            You can use the Secrets feature, or replace the key
+    return (
         """
-    else:
-        heading = """
             <h3>Configuration Required</h3>
             This site does not currently have an encryption key available.
             Secrets cannot be stored until you provide a key
         """
-
-    return (
-        heading +
         ' by saving the key in '
         'the file named <code>{key_file}</code> (recommended) or by '
         'providing the key in an environment variable named <code>{env_name}</code>.'
@@ -163,14 +154,6 @@ class SecretsView(zoom.collect.CollectionView):
             )
             return setup_page()
         return super().new(*args, **kwargs)
-
-    def new_key(self, *a, **k):
-        title = (
-            'Encryption Key'
-            if key_is_configured()
-            else 'Secrets Setup'
-        )
-        return setup_page(title=title)
 
 
 class SecretsController(zoom.collect.CollectionController):
