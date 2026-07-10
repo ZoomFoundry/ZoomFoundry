@@ -8,7 +8,6 @@ Usage:
   zoom secrets exists [options] <name>
   zoom secrets clear [options]
   zoom secrets new-key [options]
-  zoom secrets rotate [options]
 
 Options:
   -h --help            Show this help message.
@@ -24,91 +23,64 @@ from docopt import docopt
 import json
 import sys
 import os
-import configparser
 
-from zoom.encryption import generate_key
+from zoom.encryption import generate_key, get_key_pathname
 from zoom.cli.common import finish
+from zoom.cli.utils import is_site_dir
 from zoom.sites import Site
 from zoom.secrets import get_secrets, get_secrets_store, SecretsKeyMissingException
 from zoom.database import DatabaseException
 
 
-def secrets():
-    args = docopt(__doc__)
+def _resolve_site_path(args):
     site_path = args.get('--site')
-    site_path = os.path.expanduser(site_path)
-    site_path = os.path.abspath(site_path)
     if not site_path:
         finish(True, 'Error: --site is required')
+    site_path = os.path.abspath(os.path.expanduser(site_path))
+    if not is_site_dir(site_path):
+        finish(True, 'Error: no Zoom site at "%s"' % site_path)
+    return site_path
 
 
-
-    # new-key subcommand: generate and save encryption key to site.ini
-    if args['new-key']:
-        ini_path = os.path.join(site_path, 'site.ini')
-        cp = configparser.ConfigParser()
-        cp.read(ini_path)
-        if cp.has_option('secrets', 'key') and not args['--force']:
-            finish(True, 'Secrets key already exists; use --force to overwrite')
-        if not cp.has_section('secrets'):
-            cp.add_section('secrets')
-        newkey = generate_key().decode()
-        cp.set('secrets', 'key', newkey)
-        with open(ini_path, 'w') as f:
-            cp.write(f)
-        print(f'New secrets key generated and saved to {ini_path}')
-        sys.exit(0)
-
-    # rotate: re-encrypt all secrets under a new key
-    if args['rotate']:
-        if args.get('--key'):
-            old_key = args['--key']
-        elif args.get('--key-file'):
-            try:
-                old_key = open(args['--key-file']).read().strip()
-            except Exception as e:
-                finish(True, f'Error reading key file: {e}')
-        else:
-            ini_path = os.path.join(site_path, 'site.ini')
-            cp = configparser.ConfigParser()
-            cp.read(ini_path)
-            if not cp.has_option('secrets', 'key'):
-                finish(True, 'Secrets encryption key missing; provide --key or run new-key')
-            old_key = cp.get('secrets', 'key')
-        try:
-            store = get_secrets_store()
-            old_secrets = get_secrets(old_key, store)
-        except SecretsKeyMissingException as e:
-            finish(True, str(e))
-        new_key = generate_key().decode()
-        new_secrets = get_secrets(new_key, store)
-        for name in old_secrets.keys():
-            val = old_secrets.get(name)
-            new_secrets.update(name, val)
-        # persist new key
-        ini_path = os.path.join(site_path, 'site.ini')
-        cp = configparser.ConfigParser()
-        cp.read(ini_path)
-        if not cp.has_section('secrets'):
-            cp.add_section('secrets')
-        cp.set('secrets', 'key', new_key)
-        with open(ini_path, 'w') as f:
-            cp.write(f)
-        print(f'Secrets rotated and new key saved to {ini_path}')
-        sys.exit(0)
-
-    site = Site(site_path)
-    site.activate()
-
-    # resolve key
-
-    # resolve key
+def _resolve_key(args):
     key = args.get('--key')
     if args.get('--key-file'):
         try:
-            key = open(args['--key-file']).read().strip()
+            with open(args['--key-file']) as f:
+                key = f.read().strip()
         except Exception as e:
             finish(True, f'Error reading key file: {e}')
+    return key
+
+
+def secrets():
+    args = docopt(__doc__)
+
+    # new-key: generate and save encryption key to ZOOM_SECRETS_PATH
+    if args['new-key']:
+        key_path = get_key_pathname()
+        key_dir = os.path.dirname(key_path)
+        if key_dir and not os.path.isdir(key_dir):
+            try:
+                os.makedirs(key_dir, exist_ok=True)
+            except OSError as e:
+                finish(True, f'Error creating secrets directory {key_dir}: {e}')
+        if os.path.isfile(key_path) and not args['--force']:
+            finish(True, f'Secrets key already exists at {key_path}; use --force to overwrite')
+        newkey = generate_key().decode()
+        try:
+            with open(key_path, 'w') as f:
+                f.write(newkey)
+        except OSError as e:
+            finish(True, f'Error writing key file {key_path}: {e}')
+        print(f'New secrets key generated and saved to {key_path}')
+        sys.exit(0)
+
+    site_path = _resolve_site_path(args)
+    site = Site(site_path)
+    site.activate()
+
+    key = _resolve_key(args)
 
     try:
         store = get_secrets_store()
@@ -136,11 +108,11 @@ def secrets():
             val = secrets_obj.get(name)
             if val is None:
                 finish(True, f'secret not found: {name}')
-            out = val if args['--reveal'] else '****'
             if args['--json']:
-                print(json.dumps({name: val}))
+                out_val = val if args['--reveal'] else '****'
+                print(json.dumps({name: out_val}))
             elif not args['--quiet']:
-                print(out)
+                print(val if args['--reveal'] else '****')
 
         elif cmd == 'set':
             name = args['<name>']
