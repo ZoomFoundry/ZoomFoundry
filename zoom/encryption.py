@@ -3,10 +3,12 @@
 """
 
 import os
+import re
 from cryptography.fernet import Fernet
 
 
 key_name = 'zoom_encryption_key'
+_SAFE_KEY_NAME = re.compile(r'^[A-Za-z0-9_]+$')
 
 
 def generate_key():
@@ -14,35 +16,57 @@ def generate_key():
     return Fernet.generate_key()
 
 
-def get_encryption_key(key_name=key_name):
-    """Get site encryption key"""
+def get_secrets_path():
+    """Directory where secret key files are stored
 
-    def get_key_from_file(name):
-        if name.isalpha:
-            path = os.environ.get('ZOOM_SECRETS_PATH', '/run/secrets')
-            pathname = os.path.join(path, name)
-            if os.path.isfile(pathname):
-                with open(pathname, 'r') as f:
-                    return f.read()
+    Defaults to ~/.zoom/secrets for local development. Production can set
+    ZOOM_SECRETS_PATH=/run/secrets (or another service-managed path).
+    """
+    return os.path.expanduser(
+        os.environ.get('ZOOM_SECRETS_PATH', '~/.zoom/secrets')
+    )
 
-    str_key = get_key_from_file(key_name) or os.environ.get(key_name.upper(), None)
+
+def get_key_pathname(name=None):
+    """Path to the encryption key file"""
+    return os.path.join(get_secrets_path(), name or key_name)
+
+
+def get_encryption_key(name=None):
+    """Get site encryption key from file or environment"""
+    name = name or key_name
+    if not _SAFE_KEY_NAME.match(name):
+        return None
+
+    str_key = None
+    pathname = get_key_pathname(name)
+    if os.path.isfile(pathname):
+        with open(pathname, 'r') as f:
+            str_key = f.read().strip() or None
+
+    if str_key is None:
+        str_key = os.environ.get(name.upper())
+        if str_key is not None:
+            str_key = str_key.strip() or None
 
     return str_key.encode() if str_key is not None else None
 
 
-class Enpcrypter:
+class Encrypter:
 
     def __init__(self, key):
-        self.cypher = Fernet(key)
+        if isinstance(key, str):
+            key = key.encode()
+        self.cipher = Fernet(key)
 
     def encrypt(self, value):
-        encrypted_value = self.cypher.encrypt(value.encode('utf-8'))
+        encrypted_value = self.cipher.encrypt(value.encode('utf-8'))
         return encrypted_value
 
     def decrypt(self, encrypted_value):
-        value = self.cypher.decrypt(encrypted_value).decode('utf-8')
+        value = self.cipher.decrypt(encrypted_value).decode('utf-8')
         return value
 
 
 def get_encrypter(key):
-    return Enpcrypter(key)
+    return Encrypter(key)
