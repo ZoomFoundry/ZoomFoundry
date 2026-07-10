@@ -6,7 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 - add `zoom secrets` CLI with key management commands
-- add secrets module
+- add secrets module and Fernet encryption helpers
+- load encryption key from file or environment (`ZOOM_SECRETS_PATH`, `ZOOM_ENCRYPTION_KEY`)
+- default secrets path is `~/.zoom/secrets` (override with `ZOOM_SECRETS_PATH`, e.g. `/run/secrets` in production)
 
 ## [6.28.0] - 2026-02-09
 - respect collection access policy when rendering collection actions
