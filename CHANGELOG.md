@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add secrets module and Fernet encryption helpers
 - load encryption key from file or environment (`ZOOM_SECRETS_PATH`, `ZOOM_ENCRYPTION_KEY`)
 - default secrets path is `~/.zoom/secrets` (override with `ZOOM_SECRETS_PATH`, e.g. `/run/secrets` in production)
+- make MoneyField doctest locale independent
+- preserve selected request headers in dev reloader
+- preserve requests and urllib3 modules during reload
 
 ## [6.28.0] - 2026-02-09
 - respect collection access policy when rendering collection actions
@@ -292,4 +295,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Linux / Mac / Windows
 ### Changed
 - some modules ported from DataZoomer (https://github.com/dsilabs/datazoomer) which is considered the predecessor to Zoom.
-

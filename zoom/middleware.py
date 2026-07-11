@@ -729,7 +729,7 @@ def reset_modules(request, handler, *rest):
 
     def keeper(module):
         """modules that we will not delete"""
-        sigs = ['pymysql', 'pstats']
+        sigs = ['pymysql', 'pstats', 'requests', 'urllib3']
         return (module in init_modules) or any(filter(module.startswith, sigs))
 
     global init_modules
