@@ -70,6 +70,8 @@ class TestConfigEnvSubstitution(unittest.TestCase):
         # Create a temporary directory for test config files
         self.temp_dir = tempfile.TemporaryDirectory()
         self.site_dir = self.temp_dir.name
+        self.secrets_dir = join(self.temp_dir.name, 'secrets')
+        os.makedirs(self.secrets_dir)
 
         # Create a sample site.ini file with explicit section
         self.config_content = """
@@ -77,6 +79,7 @@ class TestConfigEnvSubstitution(unittest.TestCase):
         log_level = ${LOG_LEVEL:INFO}
         database_url = ${DB_URL:sqlite:///default.db}
         api_key = ${API_KEY}
+        db_password = ${db_password}
         static_value = unchanged
         """
         self.config_path = join(self.site_dir, 'site.ini')
@@ -87,8 +90,19 @@ class TestConfigEnvSubstitution(unittest.TestCase):
         os.environ.pop('LOG_LEVEL', None)
         os.environ.pop('DB_URL', None)
         os.environ.pop('API_KEY', None)
+        os.environ.pop('db_password', None)
+        self._old_secrets_path = os.environ.get('ZOOM_SECRETS_PATH')
+        os.environ['ZOOM_SECRETS_PATH'] = self.secrets_dir
 
     def tearDown(self):
+        os.environ.pop('LOG_LEVEL', None)
+        os.environ.pop('DB_URL', None)
+        os.environ.pop('API_KEY', None)
+        os.environ.pop('db_password', None)
+        if self._old_secrets_path is None:
+            os.environ.pop('ZOOM_SECRETS_PATH', None)
+        else:
+            os.environ['ZOOM_SECRETS_PATH'] = self._old_secrets_path
         # Clean up the temporary directory
         self.temp_dir.cleanup()
 
@@ -116,3 +130,34 @@ class TestConfigEnvSubstitution(unittest.TestCase):
     def test_non_placeholder_value(self):
         config = Config(self.site_dir, 'site.ini')
         self.assertEqual(config.get('test', 'static_value'), 'unchanged')
+
+    def test_secret_file_fallback(self):
+        with open(join(self.secrets_dir, 'db_password'), 'w') as f:
+            f.write('from-file-secret\n')
+        config = Config(self.site_dir, 'site.ini')
+        self.assertEqual(config.get('test', 'db_password'), 'from-file-secret')
+
+    def test_env_takes_precedence_over_secret_file(self):
+        with open(join(self.secrets_dir, 'db_password'), 'w') as f:
+            f.write('from-file\n')
+        os.environ['db_password'] = 'from-env'
+        config = Config(self.site_dir, 'site.ini')
+        self.assertEqual(config.get('test', 'db_password'), 'from-env')
+
+    def test_secret_file_with_default_when_missing(self):
+        config = Config(self.site_dir, 'site.ini')
+        self.assertEqual(config.get('test', 'log_level'), 'INFO')
+
+    def test_unsafe_secret_name_ignored(self):
+        # Write a file that would be dangerous if path traversal were allowed
+        evil = join(self.secrets_dir, 'notused')
+        with open(evil, 'w') as f:
+            f.write('nope')
+        content = """
+        [test]
+        bad = ${../etc/passwd:safe-default}
+        """
+        with open(self.config_path, 'w') as f:
+            f.write(content)
+        config = Config(self.site_dir, 'site.ini')
+        self.assertEqual(config.get('test', 'bad'), 'safe-default')
